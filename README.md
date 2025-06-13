@@ -8,7 +8,7 @@ pip install -r requiremets.txt
 
 ```
 
-2. Create a env file with enviroments variables e aplique
+2. Create a env file with enviroments variables e apply them
 ```bash
 source .env
 
