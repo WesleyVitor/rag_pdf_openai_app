@@ -22,7 +22,7 @@ def handle_file(text_input, file):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     chunks = text_splitter.split_documents(docs)
 
-    # 3. Gera embeddings com o modelo local
+    # 3. Gera embeddings com o modelo openai
     embeddings = OpenAIEmbeddings(openai_api_key=os.environ.get("OPENAI_API_KEY"))
 
     # 4. Cria o índice vetorial (InMemoryVectorStore)
