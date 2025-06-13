@@ -2,7 +2,6 @@ import gradio as gr
 import os
 from langchain.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import FAISS
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.chains import RetrievalQA
@@ -26,7 +25,7 @@ def handle_file(text_input, file):
     # 3. Gera embeddings com o modelo local
     embeddings = OpenAIEmbeddings(openai_api_key=os.environ.get("OPENAI_API_KEY"))
 
-    # 4. Cria o índice vetorial (FAISS)
+    # 4. Cria o índice vetorial (InMemoryVectorStore)
     vectorstore = InMemoryVectorStore.from_documents(chunks, embeddings)
 
     # 5. Cria o LLM e a cadeia RAG
