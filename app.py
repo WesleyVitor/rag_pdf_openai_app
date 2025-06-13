@@ -10,41 +10,86 @@ from dotenv import load_dotenv
 
 load_dotenv()  
 
-def handle_file(text_input, file):
-    if file is None:
-        return "Nenhum arquivo enviado."
+class HandleLLMUseCase:
     
-    # 1. Carrega o documento
-    loader = PyPDFLoader(file)
-    docs = loader.load()
+    def __init__(self, text_input, file):
+        self.text_input = text_input
+        self.file = file
+        self.docs = None
+        self.chunks = None
+        self.retriever = None
+        self.qa_chain = None
 
-    # 2. Divide em partes menores (chunks)
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-    chunks = text_splitter.split_documents(docs)
+    def handle_pdf_load(self):
+        """
+        Carrega o PDF enviado e extrai os documentos.
+        Se nenhum arquivo for enviado, levanta um erro.
+        """
+        if self.file is None:
+            raise ValueError("Nenhum arquivo enviado.")
+        
+        loader = PyPDFLoader(self.file)
+        self.docs = loader.load()
 
-    # 3. Gera embeddings com o modelo openai
-    embeddings = OpenAIEmbeddings(openai_api_key=os.environ.get("OPENAI_API_KEY"))
+    def handle_text_split(self):
+        """
+        Divide os documentos carregados em chunks menores de 
+        500 caracteres com sobreposição de 50 caracteres.
+        Se nenhum documento for carregado, levanta um erro.
+        """
+        if not hasattr(self, 'docs'):
+            raise ValueError("Nenhum documento carregado.")
+        
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+        self.chunks = text_splitter.split_documents(self.docs)
 
-    # 4. Cria o índice vetorial (InMemoryVectorStore)
-    vectorstore = InMemoryVectorStore.from_documents(chunks, embeddings)
+    def handle_embeddings(self):
+        """
+        Cria embeddings dos chunks de texto usando OpenAIEmbeddings .
+        Se nenhum chunk de texto estiver disponível, levanta um erro.
+        """
+        if not hasattr(self, 'chunks'):
+            raise ValueError("Nenhum chunk de texto disponível.")
+        
+        embeddings = OpenAIEmbeddings(openai_api_key=os.environ.get("OPENAI_API_KEY"))
+        vectorstore = InMemoryVectorStore.from_documents(self.chunks, embeddings)
+        self.retriever = vectorstore.as_retriever()
+    
+    def handle_chain_creation(self):
+        """
+        Cria uma cadeia de perguntas e respostas (RetrievalQA) usando o modelo LLM.
+        """
+        llm = ChatOpenAI(
+            api_key=os.environ.get("OPENAI_API_KEY"),
+            organization=os.environ.get("OPENAI_ORGANIZATION_KEY"),
+            model="gpt-4o-mini",
+        )
+        
+        self.qa_chain = RetrievalQA.from_chain_type(
+            llm=llm,
+            retriever=self.retriever
+        )
+    
+    def handle_query(self):
+        """
+        Executa a consulta na cadeia de perguntas e respostas e retorna o resultado.
+        """
+        response = self.qa_chain.invoke({"query": self.text_input})
+        return response["result"]
 
-    # 5. Cria o LLM e a cadeia RAG
-    llm = ChatOpenAI(
-        api_key=os.environ.get("OPENAI_API_KEY"),
-        organization=os.environ.get("OPENAI_ORGANIZATION_KEY"),
-        model="gpt-4o-mini",
-    )
+    def execute(self):
+        self.handle_pdf_load()
+        self.handle_text_split()
+        self.handle_embeddings()
+        self.handle_chain_creation()
+        response = self.handle_query()
+        return response
 
-    qa_chain = RetrievalQA.from_chain_type(
-        llm=llm,
-        retriever=vectorstore.as_retriever()
-    )
 
-    # 6. Faz uma pergunta
-    query = text_input
-    response = qa_chain.invoke({"query": query})
 
-    return response["result"]
+def handle_file(text_input, file):
+    instance = HandleLLMUseCase(text_input, file)
+    return instance.execute()
 
     
 with gr.Blocks() as demo:
